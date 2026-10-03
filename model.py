@@ -115,8 +115,27 @@ class MLP(nn.Module):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-# Step 5 - train_one_epoch (not yet solved)
-# TODO: implement
+# Step 5 - train_one_epoch
+def train_one_epoch(model, loader, loss_fn, optimizer):
+    model.train()
+
+    # metrics
+    total_loss = 0.0
+    total_samples = 0
+
+    for inputs, labels in loader:
+        optimizer.zero_grad()
+        predictions = model(inputs)
+        loss = loss_fn(predictions, labels)
+
+        loss.backward()
+        optimizer.step()
+
+        batch_size = inputs.size(0)
+        total_loss += loss.item() * batch_size
+        total_samples += batch_size
+
+    return total_loss / total_samples
 
 # Step 6 - evaluate (not yet solved)
 # TODO: implement
