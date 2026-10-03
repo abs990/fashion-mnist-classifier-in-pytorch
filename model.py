@@ -49,8 +49,20 @@ def load_fashion_mnist(n_train=10000, n_test=2000):
     # return float tensors in 0-1 and int64 labels.
     return loaded_data
 
-# Step 2 - FashionDataset (not yet solved)
-# TODO: implement
+# Step 2 - FashionDataset
+class FashionDataset(Dataset):
+    def __init__(self, X, y, mean=0.2860, std=0.3530):
+        self.X = X
+        self.m, _, _ = self.X.shape
+        self.y = y
+        self.mean = mean
+        self.std = std
+
+    def __len__(self):
+        return self.m
+
+    def __getitem__(self, i):
+        return ((self.X[i] - self.mean) / self.std, self.y[i])
 
 # Step 3 - make_loaders (not yet solved)
 # TODO: implement
