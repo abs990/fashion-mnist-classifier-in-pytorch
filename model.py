@@ -89,8 +89,31 @@ def make_loaders(data, batch_size=64, val_size=2000, seed=42):
 
     return loaders
 
-# Step 4 - MLP (not yet solved)
-# TODO: implement
+# Step 4 - MLP
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MLP(nn.Module):
+    def __init__(self, hidden1=300, hidden2=100, n_classes=10):
+        super().__init__()
+        # fc1 (784 -> hidden1)
+        self.fc1 = nn.Linear(784, hidden1)
+        # fc2 (hidden1 -> hidden2)
+        self.fc2 = nn.Linear(hidden1, hidden2)
+        # out (hidden2 -> n_classes)
+        self.out = nn.Linear(hidden2, n_classes)
+
+    def forward(self, x):
+        # flatten, ReLU after fc1 and fc2, return logits
+        x = torch.flatten(x, start_dim=1) # preserve batch dim
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        return self.out(x)
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 # Step 5 - train_one_epoch (not yet solved)
 # TODO: implement
