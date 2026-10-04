@@ -130,7 +130,6 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
         loss.backward()
         optimizer.step()
 
-        batch_size = inputs.size(0)
         total_loss += loss.item()
 
     return total_loss / len(loader)
@@ -142,22 +141,22 @@ def evaluate(model, loader, loss_fn):
 
     # metrics
     total_loss = 0.0
-    total_samples = 0
     correct_pred_count = 0
+    N = 0
 
     with torch.no_grad():
         for inputs, labels in loader:
             predictions = model(inputs)
             loss = loss_fn(predictions, labels)
 
-            batch_size = inputs.size(0)
-            total_loss += loss.item() * batch_size
-            total_samples += batch_size
+            num_labels = len(labels)
+            total_loss += loss.item() * num_labels
 
             classes = predictions.argmax(dim=1)
             correct_pred_count += (classes == labels).sum().item()
+            N += num_labels
 
-    return total_loss / total_samples, 1.0 * correct_pred_count / total_samples
+    return total_loss / N, 1.0 * correct_pred_count / N
 
 # Step 7 - fit (not yet solved)
 # TODO: implement
