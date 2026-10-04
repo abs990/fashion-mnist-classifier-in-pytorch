@@ -121,7 +121,6 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
 
     # metrics
     total_loss = 0.0
-    total_samples = 0
 
     for inputs, labels in loader:
         optimizer.zero_grad()
@@ -132,13 +131,33 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
         optimizer.step()
 
         batch_size = inputs.size(0)
-        total_loss += loss.item() * batch_size
-        total_samples += batch_size
+        total_loss += loss.item()
 
-    return total_loss / total_samples
+    return total_loss / len(loader)
 
-# Step 6 - evaluate (not yet solved)
-# TODO: implement
+# Step 6 - evaluate
+def evaluate(model, loader, loss_fn):
+    # eval mode + no_grad; return (mean loss over examples, accuracy) as floats.
+    model.eval()
+
+    # metrics
+    total_loss = 0.0
+    total_samples = 0
+    correct_pred_count = 0
+
+    with torch.no_grad():
+        for inputs, labels in loader:
+            predictions = model(inputs)
+            loss = loss_fn(predictions, labels)
+
+            batch_size = inputs.size(0)
+            total_loss += loss.item() * batch_size
+            total_samples += batch_size
+
+            classes = predictions.argmax(dim=1)
+            correct_pred_count += (classes == labels).sum().item()
+
+    return total_loss / total_samples, 1.0 * correct_pred_count / total_samples
 
 # Step 7 - fit (not yet solved)
 # TODO: implement
