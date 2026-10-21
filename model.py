@@ -296,8 +296,25 @@ def test_accuracy(model, loaders):
     _, test_acc = evaluate(model, loaders['test'], nn.CrossEntropyLoss())
     return test_acc
 
-# Step 11 - save_model (not yet solved)
-# TODO: implement
+# Step 11 - save_model
+def save_model(model, path):
+    # torch.save({'state_dict': ..., 'config': {'hidden1', 'hidden2', 'n_classes'}}, path)
+    torch.save({
+        "state_dict": model.state_dict(), 
+        "config": {
+            "hidden1": model.fc1.out_features, 
+            "hidden2": model.fc2.out_features, 
+            "n_classes": model.out.out_features
+        }
+    }, path)
+
+def load_model(path):
+    # rebuild MLP from the config, load the state dict, eval(), return it.
+    ckpt = torch.load(path)
+    model = MLP(**ckpt["config"])
+    model.load_state_dict(ckpt["state_dict"])
+    model.eval()
+    return model
 
 # Step 12 - predict_classes (not yet solved)
 # TODO: implement
