@@ -83,8 +83,8 @@ def make_loaders(data, batch_size=64, val_size=2000, seed=42):
     # prepare loaders
     loaders = {}
     loaders['train'] = DataLoader(FashionDataset(X_train, y_train), batch_size, shuffle=True, generator=generator)
-    loaders['val'] = DataLoader(FashionDataset(X_val, y_val), batch_size, shuffle=False, generator=generator)
-    loaders['test'] = DataLoader(FashionDataset(data['X_test'], data['y_test']), batch_size, shuffle=False, generator=generator)
+    loaders['val'] = DataLoader(FashionDataset(X_val, y_val), batch_size, shuffle=False)
+    loaders['test'] = DataLoader(FashionDataset(data['X_test'], data['y_test']), batch_size, shuffle=False)
     loaders['sizes'] = (train_size, val_size, data['y_test'].size(0))
 
     return loaders
