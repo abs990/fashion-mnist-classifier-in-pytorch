@@ -125,8 +125,7 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
 
     for inputs, labels in loader:
         optimizer.zero_grad()
-        predictions = model(inputs)
-        loss = loss_fn(predictions, labels)
+        loss = loss_fn(model(inputs), labels)
 
         loss.backward()
         optimizer.step()
