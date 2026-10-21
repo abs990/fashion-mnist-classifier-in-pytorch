@@ -88,7 +88,7 @@ def make_loaders(data, batch_size=64, val_size=2000, seed=42):
         'train': DataLoader(
             FashionDataset(X_train, y_train),
             batch_size=batch_size,
-            shuffle=True,
+            shuffle=False,
             generator=generator
         ),
         'val': DataLoader(
