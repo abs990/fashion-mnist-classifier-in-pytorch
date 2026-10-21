@@ -82,9 +82,9 @@ def make_loaders(data, batch_size=64, val_size=2000, seed=42):
 
     # prepare loaders
     loaders = {}
-    loaders['train'] = DataLoader(TensorDataset(X_train, y_train), batch_size)
-    loaders['val'] = DataLoader(TensorDataset(X_val, y_val), batch_size)
-    loaders['test'] = DataLoader(TensorDataset(data['X_test'], data['y_test']), batch_size)
+    loaders['train'] = DataLoader(TensorDataset(X_train, y_train), batch_size, shuffle=True, generator=generator)
+    loaders['val'] = DataLoader(TensorDataset(X_val, y_val), batch_size, shuffle=False, generator=generator)
+    loaders['test'] = DataLoader(TensorDataset(data['X_test'], data['y_test']), batch_size, shuffle=False, generator=generator)
     loaders['sizes'] = (train_size, val_size, data['y_test'].size(0))
 
     return loaders
@@ -159,7 +159,7 @@ def evaluate(model, loader, loss_fn):
             correct_pred_count += (classes == labels).sum().item()
             N += num_labels
 
-    return total_loss / N, 1.0 * correct_pred_count / N
+    return float(total_loss / N), float(1.0 * correct_pred_count / N)
 
 # Step 7 - fit (not yet solved)
 # TODO: implement
