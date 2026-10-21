@@ -121,6 +121,7 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
 
     # metrics
     total_loss = 0.0
+    N = 0
 
     for inputs, labels in loader:
         optimizer.zero_grad()
@@ -130,9 +131,11 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
+        num_labels = len(labels)
+        total_loss += loss.item() * num_labels
+        N += num_labels
 
-    return total_loss / len(loader)
+    return total_loss / N
 
 # Step 6 - evaluate
 def evaluate(model, loader, loss_fn):
