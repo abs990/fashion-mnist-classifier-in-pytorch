@@ -290,8 +290,11 @@ def random_search(loaders, n_trials=4, epochs=2, seed=42):
 
     return r
 
-# Step 10 - test_accuracy (not yet solved)
-# TODO: implement
+# Step 10 - test_accuracy
+def test_accuracy(model, loaders):
+    # accuracy on loaders['test'] via evaluate.
+    _, test_acc = evaluate(model, loaders['test'], nn.CrossEntropyLoss())
+    return test_acc
 
 # Step 11 - save_model (not yet solved)
 # TODO: implement
