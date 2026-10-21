@@ -212,8 +212,41 @@ def fit(model, loaders, epochs=5, lr=0.05, seed=42):
     model.load_state_dict(best_state)
     return h
 
-# Step 8 - lr_range_test (not yet solved)
-# TODO: implement
+# Step 8 - lr_range_test
+def lr_range_test(make_model, loader, lrs, n_batches=20, seed=42):
+    # fresh seeded model per lr; 
+    # mean loss over the first n_batches; 
+    # return {lr: loss}.
+
+    from itertools import islice
+
+    result = {}
+    loss_fn = nn.CrossEntropyLoss()
+    
+    for lr in lrs:
+        torch.manual_seed(seed)
+        model = make_model();
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+        batches = list(islice(loader, n_batches))
+
+        # metrics
+        total_loss = 0.0
+        N = 0
+
+        for inputs, labels in batches:
+            optimizer.zero_grad()
+            loss = loss_fn(model(inputs), labels)
+
+            loss.backward()
+            optimizer.step()
+
+            num_labels = len(labels)
+            total_loss += loss.item() * num_labels
+            N += num_labels
+
+        result[lr] = float(1.0 * total_loss / N)
+
+    return result
 
 # Step 9 - random_search (not yet solved)
 # TODO: implement
