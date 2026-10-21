@@ -316,6 +316,17 @@ def load_model(path):
     model.eval()
     return model
 
-# Step 12 - predict_classes (not yet solved)
-# TODO: implement
+# Step 12 - predict_classes
+CLASS_NAMES = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+
+def predict_classes(model, images):
+    # uint8 (n, 28, 28) -> float 0-1 -> standardize -> eval/no_grad -> class names.
+    # Scale
+    x = torch.tensor(images, dtype=torch.float32) / 255
+    # Standardize
+    x = (x - 0.2860) / 0.3530
+    # Predict
+    with torch.no_grad():
+        logits = model(x)
+        return [CLASS_NAMES[i] for i in logits.argmax(1).tolist()]
 
