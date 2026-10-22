@@ -12,19 +12,29 @@ from pathlib import Path
 import requests
 import gzip
 import torch
+from torch.utils.data import Dataset
+import copy
+
 
 def load_fashion_mnist(n_train=10000, n_test=2000):
     loaded_data = {}
-    
+
     BASE_URL = "https://storage.googleapis.com/tensorflow/tf-keras-datasets"
-    FILE_LIST = ["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz", "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]
+    FILE_LIST = [
+        "train-images-idx3-ubyte.gz",
+        "train-labels-idx1-ubyte.gz",
+        "t10k-images-idx3-ubyte.gz",
+        "t10k-labels-idx1-ubyte.gz",
+    ]
     LABEL_FLAGS = [False, True, False, True]
-    DICT_KEYS = ['X_train', 'y_train', 'X_test', 'y_test']
+    DICT_KEYS = ["X_train", "y_train", "X_test", "y_test"]
     DATA_COUNTS = [n_train, n_train, n_test, n_test]
 
-    for filename, label_flag, dict_key, data_count in zip(FILE_LIST, LABEL_FLAGS, DICT_KEYS, DATA_COUNTS):
+    for filename, label_flag, dict_key, data_count in zip(
+        FILE_LIST, LABEL_FLAGS, DICT_KEYS, DATA_COUNTS
+    ):
         file_path = Path(tempfile.gettempdir()) / filename
-        
+
         # download the four idx gz files once
         if not file_path.is_file():
             response = requests.get(f"{BASE_URL}/{filename}", timeout=60)
@@ -34,20 +44,25 @@ def load_fashion_mnist(n_train=10000, n_test=2000):
         # parse with np.frombuffer
         with gzip.open(file_path, "rb") as f:
             data_bytes = f.read()
-            data = np.frombuffer(data_bytes, dtype=np.uint8, offset=8 if label_flag else 16)
-            
+            data = np.frombuffer(
+                data_bytes, dtype=np.uint8, offset=8 if label_flag else 16
+            )
+
             if label_flag:
                 data = data[:data_count]
                 torch_tensor = torch.from_numpy(data.copy()).to(dtype=torch.int64)
             else:
                 data = data.reshape(-1, 28, 28).copy()
                 data = data[:data_count]
-                torch_tensor = torch.from_numpy(data.copy()).to(dtype=torch.float32) / 255.0
-            
+                torch_tensor = (
+                    torch.from_numpy(data.copy()).to(dtype=torch.float32) / 255.0
+                )
+
             loaded_data[dict_key] = torch_tensor
 
     # return float tensors in 0-1 and int64 labels.
     return loaded_data
+
 
 # Step 2 - FashionDataset
 class FashionDataset(Dataset):
@@ -64,19 +79,17 @@ class FashionDataset(Dataset):
     def __getitem__(self, i):
         return ((self.X[i] - self.mean) / self.std, self.y[i])
 
+
 # Step 3 - make_loaders
 from torch.utils.data import TensorDataset, DataLoader
 
+
 def make_loaders(data, batch_size=64, val_size=2000, seed=42):
-    train_size = data['X_train'].size(0) - val_size
+    train_size = data["X_train"].size(0) - val_size
 
     # Split without shuffling
-    X_train, X_val = torch.split(
-        data['X_train'], [train_size, val_size], dim=0
-    )
-    y_train, y_val = torch.split(
-        data['y_train'], [train_size, val_size], dim=0
-    )
+    X_train, X_val = torch.split(data["X_train"], [train_size, val_size], dim=0)
+    y_train, y_val = torch.split(data["y_train"], [train_size, val_size], dim=0)
 
     # Shuffle only the training subset
     generator = torch.Generator().manual_seed(seed)
@@ -85,30 +98,30 @@ def make_loaders(data, batch_size=64, val_size=2000, seed=42):
     y_train = y_train[indices]
 
     loaders = {
-        'train': DataLoader(
+        "train": DataLoader(
             FashionDataset(X_train, y_train),
             batch_size=batch_size,
             shuffle=False,
-            generator=generator
+            generator=generator,
         ),
-        'val': DataLoader(
-            FashionDataset(X_val, y_val),
+        "val": DataLoader(
+            FashionDataset(X_val, y_val), batch_size=batch_size, shuffle=False
+        ),
+        "test": DataLoader(
+            FashionDataset(data["X_test"], data["y_test"]),
             batch_size=batch_size,
-            shuffle=False
+            shuffle=False,
         ),
-        'test': DataLoader(
-            FashionDataset(data['X_test'], data['y_test']),
-            batch_size=batch_size,
-            shuffle=False
-        ),
-        'sizes': (train_size, val_size, data['y_test'].size(0))
+        "sizes": (train_size, val_size, data["y_test"].size(0)),
     }
 
     return loaders
 
+
 # Step 4 - MLP
 import torch.nn as nn
 import torch.nn.functional as F
+
 
 class MLP(nn.Module):
     def __init__(self, hidden1=300, hidden2=100, n_classes=10):
@@ -122,15 +135,17 @@ class MLP(nn.Module):
 
     def forward(self, x):
         # flatten, ReLU after fc1 and fc2, return logits
-        x = torch.flatten(x, start_dim=1) # preserve batch dim
+        x = torch.flatten(x, start_dim=1)  # preserve batch dim
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
         x = F.relu(x)
         return self.out(x)
 
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 
 # Step 5 - train_one_epoch
 def train_one_epoch(model, loader, loss_fn, optimizer):
@@ -152,6 +167,7 @@ def train_one_epoch(model, loader, loss_fn, optimizer):
         N += num_labels
 
     return total_loss / N
+
 
 # Step 6 - evaluate
 def evaluate(model, loader, loss_fn):
@@ -177,55 +193,54 @@ def evaluate(model, loader, loss_fn):
 
     return float(total_loss / N), float(1.0 * correct_pred_count / N)
 
+
 # Step 7 - fit
 def fit(model, loaders, epochs=5, lr=0.05, seed=42):
-    # seeded SGD training with a validation pass per epoch; 
-    # restore the best-val-accuracy weights; 
+    # seeded SGD training with a validation pass per epoch;
+    # restore the best-val-accuracy weights;
     # return history.
 
     torch.manual_seed(seed)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     loss_fn = nn.CrossEntropyLoss()
-    
-    h = {
-        'best_epoch': [], 
-        'train_loss': [], 
-        'val_acc': [], 
-        'val_loss': []
-    }
+
+    h = {"best_epoch": [], "train_loss": [], "val_acc": [], "val_loss": []}
     best_acc = -1
     best_epoch = -1
     best_state = None
 
     for idx in range(epochs):
-        h['train_loss'].append(train_one_epoch(model, loaders['train'], loss_fn, optimizer))
-        val_loss, val_acc = evaluate(model, loaders['val'], loss_fn)
-        h['val_loss'].append(val_loss)
-        h['val_acc'].append(val_acc)
-        
+        h["train_loss"].append(
+            train_one_epoch(model, loaders["train"], loss_fn, optimizer)
+        )
+        val_loss, val_acc = evaluate(model, loaders["val"], loss_fn)
+        h["val_loss"].append(val_loss)
+        h["val_acc"].append(val_acc)
+
         if val_acc > best_acc:
             best_acc = val_acc
             best_epoch = idx
             best_state = copy.deepcopy(model.state_dict())
 
-    h['best_epoch'] = best_epoch
+    h["best_epoch"] = best_epoch
     model.load_state_dict(best_state)
     return h
 
+
 # Step 8 - lr_range_test
 def lr_range_test(make_model, loader, lrs, n_batches=20, seed=42):
-    # fresh seeded model per lr; 
-    # mean loss over the first n_batches; 
+    # fresh seeded model per lr;
+    # mean loss over the first n_batches;
     # return {lr: loss}.
 
     from itertools import islice
 
     result = {}
     loss_fn = nn.CrossEntropyLoss()
-    
+
     for lr in lrs:
         torch.manual_seed(seed)
-        model = make_model();
+        model = make_model()
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         batches = list(islice(loader, n_batches))
 
@@ -248,19 +263,22 @@ def lr_range_test(make_model, loader, lrs, n_batches=20, seed=42):
 
     return result
 
+
 # Step 9 - random_search
 import torch
+
+
 def random_search(loaders, n_trials=4, epochs=2, seed=42):
-    # seeded random configurations of (hidden1, hidden2, lr); 
-    # fit each; 
+    # seeded random configurations of (hidden1, hidden2, lr);
+    # fit each;
     # return trials and the best.
 
     r = {}
-    r['trials'] = []
-    r['best'] = None
+    r["trials"] = []
+    r["best"] = None
 
     best_val_acc = -1
-    
+
     rng = np.random.default_rng(seed)
     hidden1_choices = [100, 200, 300]
     hidden2_choices = [50, 100]
@@ -274,39 +292,45 @@ def random_search(loaders, n_trials=4, epochs=2, seed=42):
 
         model = MLP(hidden1, hidden2)
         history = fit(model, loaders, epochs=epochs, lr=lr, seed=seed)
-        
+
         trial = {
-            'hidden1': hidden1, 
-            'hidden2': hidden2, 
-            'lr': lr, 
-            'val_acc': history['val_acc'][history['best_epoch']]
+            "hidden1": hidden1,
+            "hidden2": hidden2,
+            "lr": lr,
+            "val_acc": history["val_acc"][history["best_epoch"]],
         }
 
-        r['trials'].append(trial)
+        r["trials"].append(trial)
 
-        if trial['val_acc'] > best_val_acc:
-            best_val_acc = trial['val_acc']
-            r['best'] = trial
+        if trial["val_acc"] > best_val_acc:
+            best_val_acc = trial["val_acc"]
+            r["best"] = trial
 
     return r
+
 
 # Step 10 - test_accuracy
 def test_accuracy(model, loaders):
     # accuracy on loaders['test'] via evaluate.
-    _, test_acc = evaluate(model, loaders['test'], nn.CrossEntropyLoss())
+    _, test_acc = evaluate(model, loaders["test"], nn.CrossEntropyLoss())
     return test_acc
+
 
 # Step 11 - save_model
 def save_model(model, path):
     # torch.save({'state_dict': ..., 'config': {'hidden1', 'hidden2', 'n_classes'}}, path)
-    torch.save({
-        "state_dict": model.state_dict(), 
-        "config": {
-            "hidden1": model.fc1.out_features, 
-            "hidden2": model.fc2.out_features, 
-            "n_classes": model.out.out_features
-        }
-    }, path)
+    torch.save(
+        {
+            "state_dict": model.state_dict(),
+            "config": {
+                "hidden1": model.fc1.out_features,
+                "hidden2": model.fc2.out_features,
+                "n_classes": model.out.out_features,
+            },
+        },
+        path,
+    )
+
 
 def load_model(path):
     # rebuild MLP from the config, load the state dict, eval(), return it.
@@ -316,8 +340,21 @@ def load_model(path):
     model.eval()
     return model
 
+
 # Step 12 - predict_classes
-CLASS_NAMES = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+CLASS_NAMES = [
+    "T-shirt/top",
+    "Trouser",
+    "Pullover",
+    "Dress",
+    "Coat",
+    "Sandal",
+    "Shirt",
+    "Sneaker",
+    "Bag",
+    "Ankle boot",
+]
+
 
 def predict_classes(model, images):
     # uint8 (n, 28, 28) -> float 0-1 -> standardize -> eval/no_grad -> class names.
@@ -329,4 +366,3 @@ def predict_classes(model, images):
     with torch.no_grad():
         logits = model(x)
         return [CLASS_NAMES[i] for i in logits.argmax(1).tolist()]
-
